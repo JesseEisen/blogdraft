@@ -2,7 +2,7 @@
 
 我将会在这篇教程中讲到在Lua中一个非常重要的概念：`metatable` . 知道如何使用metatable后会让你更好的使用Lua。每个table都可以有一个metatable。matetable是通过某些key来改变它所绑定的table的一些行为的。让我们来看一个例子:
 
-```
+```lua
 t = {} --正常定义的一个table
 mt = {} -- metatable， 不过现在没有包含任何东西
 setmetatable(t,mt) --设置mt成为t的metatable
@@ -11,7 +11,7 @@ getmetatable(t) -- 这将返回mt
 
 我们可以发现：`getmetatable` 和`setmetatable`是两个主要的函数，很明显从字面就可以看出他们是做什么的。当然，我们可以将上面的前三行写成如下的样子：
 
-```
+```lua
 t = setmetatable({},{})
 ```
 
@@ -39,7 +39,7 @@ t = setmetatable({},{
 
 当我们用一个key(table是key-value形式)在表中搜索是，不管这个key是什么(t[4],t.foo或者t["foo"]).当值没有赋给这个key的时候，Lua会在table的metatable中寻找`__index`, 如果`__index`包含在这个表中，Lua将在属于`__index`的表中寻找对应的`Key`. 这也许看起来比较的绕，让我们看一个例子：
 
-```
+```lua
 other = {foo = 3}
 t = setmetatable({}, {__index = other})
 t.foo   -- 3
@@ -56,7 +56,7 @@ t.bar   -- nil
 
 当你尝试去给一表设置不存在的键值得时候，Lua会搜索是否`__newindex`关键字存在于这个metatable中，它的步骤和`__index`一样。如果`__newindex`是一个表，那么这个key和value将会被设置在`__newindex`所指定的表中。
 
-```
+```lua
 other = {}
 t = setmetatable({},{__newindex = other})
 t.foo = 3
@@ -66,7 +66,7 @@ t.foo  -- nil
 
 如果`__newindex`是一个函数，那么这个函数将被调用，key和value将作为参数传入
 
-```
+```lua
 t = setmetatable({}, {
 	__newindex = function(t,key,value)
 		if type(value) == "number" then
@@ -91,3 +91,139 @@ t.la  -- 100
 ## rawget 和 rawset
 
 他们是在我们需要设置和获取表的key的时候，不想让Lua将metatable引进来。正如你猜的那样，`rawget`允许你获取这个`key`所代表的值，同时让Lua不是使用`__index`. `rawset`让你设置这个`key`的value，同时不会去使用`__newindex`(这些并不会对速度上有神提升，如果使用常规做法的话)。当你陷入无限循环的时候你可能需要使用他们。举个例子，上面的那个代码例子中，`t[key] = value * value` 将会在`__newindex`中设置一遍，这将会让你陷入无线循环中。使用`rawset(t,key, value * value)`会避免这个。
+
+我们需要将目标table，key和value都传给我们要使用的那些函数。
+
+## 运算符
+
+很多的metatable的关键字可以和运算符搭配使用(+,-等)，允许你让table能够让table可以支持那些运算符。比如，我们想让table可以能够相乘，我么可以这样做：
+
+```lua
+t = setmetatable({1,2,3}, {
+    __mul = function(t, other)
+     new = {}
+
+     for i = 1,other do
+         for _,v in ipairs(t) do table.insert(new,v) end
+     end
+
+     return new
+    end
+})
+
+t = t * 2 -- {1,2,3,1,2,3}
+```
+这让我们可以通过乘法运算来实现将table重复指定次数的功能。对应于乘法运算的关键字是`__mul`,和`__index`和`__newindex`不同的是，和运算符有关的关键字只能接受function。函数的第一个参数永远是目标table，然后接下来的参数就是在操作符右边的那个（除了__unm）,下面是支持的运算符的：
+
++ __add: 加法(+)
++ __sub: 减法(-)
++ __mul: 乘法(*)
++ __div: 除法(/)
++ __mod: 取模(%)
++ __unm: 一元运算 -，取负数
++ __concat: 连接(..)
++ __eq: 相等(==)
++ __lt: 小于(<)
++ __le: 小于等于(<=)
+
+(这边只有==,<,<= 是因为你可以通过这三个实现所有的对比操作的功能，事实上只有==和<是必需的)
+
+## __call
+
+下一个是关键字`__call`,这让你将table当作函数来调用，一个代码例子：
+
+```lua
+t = setmetatable({},{
+    __call = function(t,a,b,c,whatever)
+        return (a + b + c) *whatever
+    end
+})
+
+t(1,2,3,4)  --24
+```
+这个函数和上面的一样，传入目标table，后面跟着我们要传入的参数。
+
+`__call`在很多情况下是非常有用的。一个比较常用的就是将一个call转发给table内的一个函数，我们可以在[tween.lua](https://github.com/kikito/tween.lua/blob/master/tween.lua#L339)库里面找到这个用法。`tween.start`能够被`tween`这个表自己调用。另一个例子是[MiddleClass](https://github.com/kikito/middleclass/blob/master/middleclass.lua#L64),类的`new`方法能够被类自己调用。
+
+## __tostring
+最后一个介绍的是`__tostring`.如果实现了这个，他将会通过tostring将这个table转换成一个string，最常用的就是使用和`print`类似的函数。通常，当你尝试去将一个table转换成一个string的时候，你一般会得到如下的格式的"0x<hex-code-here>",但是你可以用`__tostring`来修改它，比如：
+
+```lua
+t = setmetatable({1,2,3}, {
+    __tostring = function(t)
+        sum = 0
+        for _, v in pairs(t) do sum = sum + v end
+        return "Sum: " .. sum
+    end
+})
+
+print(t)  -- prints out "Sum:6"
+```
+
+## 构建一个Vector类
+
+为了将所有的东西包裹起来，我们将写一个类，来封装一个2D的vector(感谢[hump.vector](https://github.com/vrld/hump/blob/master/vector.lua)提供了很多的代码)。将他们都放在这儿有点多了，但是你可以在[gist#1055480](https://gist.github.com/1055480)处看到所有的代码。我已经优先将所有和metatable有关的东西放到了第一个文件里面，这也是最重要的。(注意：如果你是第一次遇到OOP，也许会让你有一点点困惑)
+
+> 译注：下面的内容需要先看一下代码，或者是对照的代码阅读
+
+```lua
+Vector = {}
+Vector.__index = Vector
+```
+这段代码设置一个用于`Vector`类的table。并且将`__index`关键字指向了它本身。接下来要干嘛呢？你也许注意到了我们将所有的metatable的方法都放到了`Vector`类内部了。你现在所看到的就是一个Lua中最简单的OOP。`Vector`表对应着一个类，这个类包含的所有方法，所有的实例都可以用。`Vector.new`创建了这个类的一个新的实例。
+
+```lua
+function Vector.new(x, y)
+    return setmetatable({x = x or 0, y = y or 0}, Vector)
+end
+```
+这个函数创建了一个新的表，包含了`x`和`y`。 并且设置metatable为`Vector`类。我们知道，`Vector`包含所有的元方法以及`__index`关键字。这就表明我们可以在新的table里面使用到在`Vector`里面定义到的所有函数。
+我们待会儿再谈这个。
+
+另一个比较重要的是最后一行：
+
+```lua
+setmetatable(Vector, {__call = function(_, ...) return Vector.new(...) end})
+```
+这样操作的目的就是让我们可以通过`Vector.new`或者`Vector`来创建`Vector`实例。
+
+最后一个比较重要的东西就是：你有可能不太了解冒号的语法。 我们定义用冒号定义一个函数如下：
+
+```lua
+function t:method(a,b,c)
+    ...
+end
+```
+我们实际是定义了这样的一个函数：
+
+```lua
+function t.method(self, a, b,c)
+    ...
+end
+```
+
+这是一个语法糖，我们可以在使用了冒号语法的时候这样调用函数:
+
+```lua
+--these are the same
+t:method(1,2,3)
+t.method(t,1,2,3)
+```
+
+现在我们该怎样使用`Vector`类呢？，见下：
+
+```lua
+a = Vector.new(10,10)
+b = Vector(20,11)
+c = a + b
+print(a:len())  --14.142135623731
+print(a)  --(10,10)
+print(c)  --(30,21)
+print(a < c)  -- true
+print(a == b) --false
+```
+
+
+
+
+
