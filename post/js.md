@@ -86,8 +86,57 @@ array可以用下标访问，但是map和set不可以，ES6引入了iterable的�
     }
  这个和c语言里面的可变参数比较类似。
  
- 
+ ####变量作用域
+ 支持函数的嵌套，变量是从内向外搜索，内部函数可以使用外部函数的变量，但是外部函数不能使用内部函数的变量。
+ 函数会对未定义的变量进行一个变量提升，而不会报错。
+ 全局作用域的变量被绑定到了window这个变量上。比如alter可以写成window.alter()
+ 不同的js文件中拥有相同的全局变量的话，会引起冲突。可以将所有的变量绑定到一个全局变量中：
+    var MYAPP = {};
+    MYAPP.name = 'name';
+    MYAPP.version = 1.0;
+    
+    MYAPP.foo = function(){
+      return 'foo';
+    };
+js的变量作用域是在函数内部的，在块级作用域中，可以使用let来定义变量，比如在for中可以使用 for(let i =0; i< 100;i++)
+ES6 引入了const来定义常量，他和let都是块级别作用域。
 
+#### 方法
+绑定到对象上的函数称为方法，和普通函数没差，但是可以使用一个this变量
+this变量始终指向当前的对象。
+如果带有this的函数单独调用，一般会得不到正确结果，必须用xx.xx()才可以。
+如果遇到了嵌套定义的函数，那么可以在最外层使用var that =this 获取到当前的对象
+函数本身提供了一个apply函数，可以用来指定this指向哪个对象，apply接受两个参数，第一个是需要绑定的this变量，第二个参数是Array，表示函数本身的参数。
+    function getAge() {
+    var y = new Date().getFullYear();
+    return y - this.birth;
+    }
 
+    var xiaoming = {
+    name: '小明',
+    birth: 1990,
+    age: getAge
+    };
+
+    xiaoming.age(); // 25
+    getAge.apply(xiaoming, []); // 25, this指向xiaoming, 参数为空
+
+另外一个相似的函数 call(), 只是call的参数是顺序传入的，而apply的第二个参数是打包成array传进去的。
+
+对普通函数的调用，通常把this绑定为null。
+    Math.max.apply(null,[3,4,5]);
+
+装饰器，利用apply来动态的修改函数的行为。比如想统计使用了多少次parseInt()，可以将原来的函数替换掉。
+
+    var count = 0;
+    var oldParseInt = parseInt;
+    
+    window.parseInt = function(){
+      count+=1;
+      return oldParseInt.apply(null,arguments);
+    }
+这相当是在原来的parseInt上加了一个修饰。结果并没有变化。
+
+####高阶函数
 
 
