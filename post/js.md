@@ -266,7 +266,7 @@ RegExp提供了test的方法，用来检测给定的字符串是否符合条件�
 
     var re = /^(\d+?)(0*)$/;
     re.exec('102300'); //['102300','1023','00'];
-    
+
 全局搜索 在正则后面加g
     var r1 = /\d+/g
 
@@ -299,43 +299,43 @@ js中没有办法直接继承，需要修改原型链来达到继承的目的，
         Child.prototype = new F();
         Child.prototype.constructor = Child;
     }
-  
+
   使用的时候，主要有如下三步：
-  - 定义新的构造函数，并在内部用call()调用希望“继承”的构造函数，并绑定this；
-  - 借助中间函数F实现原型链继承，最好通过封装的inherits函数完成；
-  - 继续在新的构造函数的原型上定义新方法
- 
+- 定义新的构造函数，并在内部用call()调用希望“继承”的构造函数，并绑定this；
+- 借助中间函数F实现原型链继承，最好通过封装的inherits函数完成；
+    - 继续在新的构造函数的原型上定义新方法
+
  比如：
  	function PrimaryStudent(props) {
     	Student.call(this, props); //使用call来调用
     	this.grade = props.grade || 1;
-	}
+    }
 
 #### class继承
 上面的那些继承方法，到了ES6中进行了很大的简化，其中出现了class的定义。我们可以使用class来定义一个新的类：
 	class Student{
-      constrictor(name){
-        this.name = name;
-      }
-      
-      hello(){
-        console.log("hello, "+ this.name + '!');
-      }
+	  constrictor(name){
+	    this.name = name;
+	  }
+	  
+	  hello(){
+	    console.log("hello, "+ this.name + '!');
+	  }
 	}
 	
 	var xm = new Student("xiaoming");
 	xm.hello();
-	
+
 继承的话就更加简单了：
 	class PrimaryStduent extends Student{
-      constructor(name,grade){
-        super(name); //继承父类的属性
-        this.grade = grade;
-      }
-      
-      say() {
-        console.log("I am ",+this.name);
-      }
+	  constructor(name,grade){
+	    super(name); //继承父类的属性
+	    this.grade = grade;
+	  }
+	  
+	  say() {
+	    console.log("I am ",+this.name);
+	  }
 	}
 
 不过这样的代码目前并不是所有的浏览器都支持，因此可以使用babel来进行转换。
@@ -393,7 +393,7 @@ textContent也是这样的，不过前者不返回隐藏元素文本，后者是
 	nodes.id = 'haskell';
 	nodes.innerText = 'Haskell'; //<p id="haskell">Haskell</p>
 	xxx.appendChild(nodes);
-	
+
 可以使用 setAttribute('xxx', "xxx")
 
 insertBefore(new,ref) 将new插入到ref节点的前面
@@ -405,5 +405,54 @@ removeChild(child) 需要获取到父节点， 删除后父节点下的子节点
 
 #### 操作表单
 获取到表单的id，然后可以使用value/check这两个属性
+
+#### Promise
+Ajax中提供了一个机制，不关心结果是如何处理，先执行ajax的逻辑。 因此可以通过Promise的机制来实现。 
+
+先创建一个Promise的实例，Promise的参数是我们要执行的函数，函数有两个参数，这两个参数都是函数，分别处理执行成功和失败后的处理结果：
+ 
+	var p = new Promise(function(resolve, reject){
+      ....
+      if(xxx){
+        resolve(xxx);
+      }
+      else{
+        reject(xxx);
+      }
+	})
+	
+	p.then(function(result){xxxx}).catch(function(result){xxxx})
+	
+所谓的成功和失败是对应于Promise中的函数的参数，function的第一个始终对应的then分支，第二个参数对应着catch分支。 
+
+Promise可以串行执行。 比如：
+job1.then(job2).then(job3).catch(handlerError);
+其中job1，job2,job3 都是promise的对象。
+
+同时Promise还提供了并行执行和竞争执行的功能， 比如：
+Promise.all([p1,p2]).then(function(result){xxxx});
+Promise.race([p1,p2]).then(function(reulst){xxxx});
+race就是谁快就先处理谁的结果，剩下的就丢弃不处理了。
+
+#### Jquery 选择器
+var div = $('#abc');
+var divDom = div.get(0); //假设存在div， 获取第一个DOM元素
+var another = $(divDom); //重新把DOM包装为jQuery对象
+
+var ps = $('p'); //返回所有的<p>节点
+var a = $('.red'); //返回所有包含class=red的节点
+var a = $('.red.green'); //返回有多个class的节点
+
+按属性查找
+var icon = $('[name=email]');
+按属性的前缀和后缀也可以匹配
+var icons= $('[name^='icon']'); //前缀
+var names = $('[name$=with]'); //后缀
+
+组合查找
+var tr = $('input[name=email]');//只返回input这是name=email的节点。
+
+多项选择
+$('p.red,p.green'); //<p,class='red'> <p,class='green'>
 
 
